@@ -1,0 +1,34 @@
+# Локальная конфигурация и секреты
+.env
+.env.*
+!.env.examole
+config.toml
+config.*.toml
+!config.toml.examole
+*.pem
+*.key
+*.crt
+
+# Результаты сбора
+output/
+hardware-collection/
+hardware-collection-archives/
+*.json.tmp
+*.csv.tmp
+*.part
+
+# Python и служебные файлы
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+work/
+.DS_Store
+.idea/
+.vscode/

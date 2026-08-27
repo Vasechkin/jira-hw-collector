@@ -1,0 +1,43 @@
+# Секции [jira] могут находиться в том же config.toml, который использует
+# jira-sdesk-collector. Все значения ниже условные.
+
+[jira]
+base_url = "https://jira.example.invalid"
+api_path = "/rest/api/2"
+token_env = "JIRA_TOKEN"
+proxy = ""
+ca_bundle = ""
+verify_tls = true
+timeout_seconds = 30
+page_size = 100
+
+[hardware]
+project_key = "PROJECT_KEY"
+jql = "project = PROJECT_KEY ORDER BY updated DESC"
+detail_workers = 4
+best_effort = true
+collect_comments = true
+collect_worklogs = true
+collect_changelog = true
+collect_remote_links = true
+collect_properties = true
+collect_watchers = true
+collect_votes = true
+download_attachments = false
+max_attachment_bytes = 26214400
+
+[hardware_output]
+directory = "hardware-collection"
+json_filename = "equipment.json"
+csv_filename = "equipment.csv"
+fields_filename = "field_catalog.csv"
+links_filename = "issue_links.csv"
+attachments_filename = "attachments.csv"
+changelog_filename = "changelog.csv"
+manifest_filename = "manifest.json"
+
+[hardware_archive]
+enabled = true
+recipient = "age1example_replace_with_public_recipient"
+identity_file = "/secure/path/outside/repository/archive-age.key"
+delete_plaintext_after_success = true
