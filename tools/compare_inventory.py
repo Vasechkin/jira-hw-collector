@@ -27,7 +27,7 @@ FIELD = {
 }
 IP_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
 ATTACHMENT_HINT = re.compile(
-    r"(?i)(схем|diagram|topolog|паспорт|passport|спецификац|spec|инвентар|inventory|rack|стойк|config|конфиг|порт|port|serial|серийн)"
+    r"(?i)(схем|diagram|topolog|паспорт|passport|спецификац|spec|инвентар|inventory|rack|стойк|config|конфиг|порт|serial|серийн|ipmi|idrac|ilo)"
 )
 
 
@@ -54,6 +54,16 @@ def norm_host(value: Any) -> str:
     return text
 
 
+def summary_host(value: Any) -> str:
+    """Извлечь имя узла из начала заголовка Jira.
+
+    В исторических карточках отдельное поле hostname не заполнено, а имя
+    записано первым токеном: ``openstack-int-02 (B18 ...)``.
+    """
+    match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]+)", scalar(value))
+    return match.group(1) if match else ""
+
+
 def ips(value: Any) -> set[str]:
     result = set()
     for candidate in IP_RE.findall(scalar(value)):
@@ -70,6 +80,7 @@ def read_jira(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     attachments = []
     for item in raw.get("equipment", []):
         issue = item.get("issue") or {}; fields = issue.get("fields") or {}
+        organization = scalar(fields.get(FIELD["organization"])) or scalar(fields.get(FIELD["balance"]))
         record = {
             "key": str(issue.get("key") or ""),
             "summary": scalar(fields.get("summary")),
@@ -77,18 +88,22 @@ def read_jira(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
             "status": scalar(fields.get("status")),
             **{name: scalar(fields.get(field_id)) for name, field_id in FIELD.items()},
         }
-        record["hostname_norm"] = norm_host(record["hostname"] or record["summary"])
+        record["organization"] = organization
+        record["hostname_norm"] = norm_host(record["hostname"] or summary_host(record["summary"]))
         record["ips"] = ips(record["ip"])
         record["serial_norm"] = re.sub(r"[^a-z0-9]", "", record["serial"].lower())
         records.append(record)
         for attachment in fields.get("attachment") or []:
             filename = scalar(attachment.get("filename")); mime = scalar(attachment.get("mimeType"))
             reason = []
-            if ATTACHMENT_HINT.search(filename): reason.append("название указывает на технические детали")
-            if mime in {"application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "application/vnd.ms-excel", "application/zip"}: reason.append("документ или архив")
-            if mime.startswith("image/"): reason.append("изображение может содержать маркировку или схему")
+            if ATTACHMENT_HINT.search(filename):
+                reason.append("название указывает на технические детали")
+                if mime.startswith("image/"):
+                    reason.append("изображение может содержать маркировку или схему")
+                if mime in {"application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            "application/vnd.ms-excel", "application/zip"}:
+                    reason.append("документ или архив")
             if reason:
                 attachments.append({"key": record["key"], "filename": filename, "mime_type": mime,
                                     "size": scalar(attachment.get("size")), "reason": "; ".join(reason)})
@@ -126,12 +141,17 @@ def openstack_entities(inventory_path: Path, vm_path: Path) -> list[dict[str, An
 
 
 def choose_matches(entity: dict[str, Any], jira: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str]:
+    def prefer_same_organization(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        expected = entity.get("organization", "").lower()
+        same = [item for item in items if expected and expected in item.get("organization", "").lower()]
+        return same or items
+
     serial = [item for item in jira if entity["serial_norm"] and item["serial_norm"] == entity["serial_norm"]]
-    if serial: return serial, "serial"
+    if serial: return prefer_same_organization(serial), "serial"
     host = [item for item in jira if entity["hostname_norm"] and item["hostname_norm"] == entity["hostname_norm"]]
-    if host: return host, "hostname"
+    if host: return prefer_same_organization(host), "hostname"
     by_ip = [item for item in jira if entity["ips"] and item["ips"] & entity["ips"]]
-    if by_ip: return by_ip, "ip"
+    if by_ip: return prefer_same_organization(by_ip), "ip"
     return [], ""
 
 

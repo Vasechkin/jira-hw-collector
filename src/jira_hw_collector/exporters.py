@@ -103,6 +103,8 @@ def changelog_rows(items: list[dict[str, Any]]) -> list[dict[str, str]]:
     for item in items:
         key = str((item.get("issue") or {}).get("key") or "")
         histories = (item.get("related") or {}).get("changelog") or []
+        if not isinstance(histories, list):
+            histories = ((item.get("issue") or {}).get("changelog") or {}).get("histories") or []
         for history in histories if isinstance(histories, list) else []:
             for change in history.get("items") or []:
                 rows.append({"key": key, "history_id": text(history.get("id")), "created": text(history.get("created")),
