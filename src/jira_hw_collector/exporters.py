@@ -92,7 +92,8 @@ def link_rows(items: list[dict[str, Any]]) -> list[dict[str, str]]:
                 target = link.get(side)
                 if isinstance(target, dict):
                     rows.append({"source": source, "direction": direction, "type": text(link.get("type")), "target": str(target.get("key") or "")})
-        for remote in (item.get("related") or {}).get("remote_links") or []:
+        remote_links = (item.get("related") or {}).get("remote_links") or []
+        for remote in remote_links if isinstance(remote_links, list) else []:
             rows.append({"source": source, "direction": "remote", "type": text(remote.get("relationship")), "target": text(remote.get("object"))})
     return rows
 

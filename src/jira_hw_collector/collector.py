@@ -46,7 +46,7 @@ def collect(config: Config) -> tuple[Path, dict[str, Any]]:
     failures: list[dict[str, str]] = []
     with ThreadPoolExecutor(max_workers=config.hardware.detail_workers) as executor:
         futures = {executor.submit(_collect_one, config, key): key for key in keys}
-        for future in as_completed(futures):
+        for completed, future in enumerate(as_completed(futures), 1):
             key = futures[future]
             try:
                 items.append(future.result())
@@ -54,6 +54,8 @@ def collect(config: Config) -> tuple[Path, dict[str, Any]]:
                 failures.append({"key": key, "error": f"{type(error).__name__}: {error}"})
                 if not config.hardware.best_effort:
                     raise
+            if completed % 50 == 0 or completed == len(keys):
+                print(f"Обработано карточек: {completed}/{len(keys)}; ошибок: {len(failures)}", flush=True)
     items.sort(key=lambda item: str((item.get("issue") or {}).get("key") or ""))
 
     attachment_rows: list[dict[str, str]] = []
