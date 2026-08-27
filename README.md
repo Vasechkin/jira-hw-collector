@@ -52,6 +52,17 @@ jira-hw-collector --config config.toml probe
 jira-hw-collector --config config.toml collect
 ```
 
+Целевая загрузка только явно выбранных вложений:
+
+```bash
+jira-hw-collector \
+  --config config.toml \
+  download-attachments \
+  --selection-csv attachment-selection.csv
+```
+
+Файл выбора должен содержать колонки `key` и `filename` или `id`. Вложения, которых нет в CSV, не загружаются. Результат упаковывается и шифруется так же, как полный снимок.
+
 ## Результаты
 
 В каждый снимок входят:
